@@ -4,6 +4,7 @@
 # Test files/folders
 recordings
 test*
+development/
 
 # Environment variable files
 .env
