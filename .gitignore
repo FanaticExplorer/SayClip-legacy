@@ -8,3 +8,6 @@ development/
 
 # Environment variable files
 .env
+
+# Modules context descriptions
+context
