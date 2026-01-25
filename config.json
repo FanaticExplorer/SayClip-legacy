@@ -1,8 +1,7 @@
 {
     "openai": {
         "model": "gpt-4o-mini-transcribe",
-        "prompt": "Transcribe accurately with proper punctuation and capitalization.",
-        "base_url": "https://api.openai.com/v1/",
-        "temperature": 0
+        "prompt": "Transcribe accurately with proper punctuation and capitalization. Convert names of punctuation into punctuation itself (like \"comma\" would turn to \",\")",
+        "temperature": 0.1
     }
 }
