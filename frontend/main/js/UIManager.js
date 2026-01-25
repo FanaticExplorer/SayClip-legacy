@@ -6,6 +6,7 @@ export class UIManager {
         this.recordBtn = null;
         this.statusText = null;
         this.recordingTime = null;
+        this.settingsBtn = null;
     }
 
     /**
@@ -15,6 +16,7 @@ export class UIManager {
         this.recordBtn = document.getElementById('recordBtn');
         this.statusText = document.getElementById('statusText');
         this.recordingTime = document.getElementById('recordingTime');
+        this.settingsBtn = document.getElementById('settingsBtn');
     }
 
     /**
@@ -59,5 +61,12 @@ export class UIManager {
     getRecordBtn() {
         return this.recordBtn;
     }
-}
 
+    /**
+     * Get the settings button element
+     * @returns {HTMLElement} The settings button
+     */
+    getSettingsBtn() {
+        return this.settingsBtn;
+    }
+}

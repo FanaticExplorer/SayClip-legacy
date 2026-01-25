@@ -29,6 +29,21 @@ export class AudioRecorder {
 
         // Setup event listeners
         this.uiManager.getRecordBtn().addEventListener('click', () => this.handleToggleRecording());
+        this.uiManager.getSettingsBtn().addEventListener('click', () => this.openSettings());
+    }
+
+    /**
+     * Open settings window
+     */
+    openSettings() {
+        if (window.pywebview && window.pywebview.api) {
+            window.pywebview.api.open_settings().catch(error => {
+                console.error('Failed to open settings:', error);
+                this.uiManager.setStatus('Error opening settings');
+            });
+        } else {
+            console.warn('Settings unavailable (Python backend not connected)');
+        }
     }
 
     /**
