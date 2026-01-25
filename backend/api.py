@@ -4,6 +4,8 @@ import keyring
 import base64
 import datetime
 import json
+import copy
+import webview
 from io import BytesIO
 from pathlib import Path
 from dotenv import load_dotenv
@@ -17,13 +19,26 @@ filterwarnings("ignore", category=UserWarning, message=".*URL.raw is deprecated.
 from openai import OpenAI, AuthenticationError, APIConnectionError
 
 class AudioAPI:
+    CONFIG_PATH = str((Path(__file__).parent.parent / "config.json").resolve())
+    ALLOWED_MODELS = {
+        "gpt-4o-transcribe",
+        "gpt-4o-mini-transcribe",
+        "gpt-4o-mini-transcribe-2025-12-15",
+        "whisper-1",
+        "gpt-4o-transcribe-diarize",
+    }
+    DEFAULT_CONFIG = {
+        "openai": {
+            "model": "gpt-4o-mini-transcribe",
+            "prompt": "Transcribe accurately with proper punctuation and capitalization.",
+            "temperature": 0,
+        }
+    }
+
     def __init__(self):
         load_dotenv()
         self.config = self.load_config()
-
-        self.model = self.config.get("openai", {}).get("model", "whisper-1")
-        self.prompt = self.config.get("openai", {}).get("prompt", "")
-        self.temperature = self.config.get("openai", {}).get("temperature", 0)
+        self.apply_config(self.config)
 
         # Try to get key from keyring first, then environment variable
         self.api_key = keyring.get_password("SayClip", "openai_api_key") or os.getenv("OPENAI_API_KEY")
@@ -65,16 +80,72 @@ class AudioAPI:
 
         os.execl(sys.executable, sys.executable, *sys.argv)
 
-    @staticmethod
-    def load_config():
-        #config.json is in the root directory, which is one level up from backend/api.py
-        config_path = Path(__file__).parent.parent / "config.json"
+    def apply_config(self, config):
+        openai_config = config.setdefault("openai", {})
+        defaults = self.DEFAULT_CONFIG["openai"]
+        self.model = openai_config.get("model", defaults["model"])
+        self.prompt = openai_config.get("prompt", defaults["prompt"])
+        self.temperature = openai_config.get("temperature", defaults["temperature"])
+
+    @classmethod
+    def load_config(cls):
+        config_path = cls.CONFIG_PATH
         try:
-            with open(config_path) as f:
-                return json.load(f)
+            with open(config_path, encoding="utf-8") as f:
+                data = json.load(f)
+                if not isinstance(data, dict):
+                    raise ValueError("config.json must contain a JSON object")
+                return data
         except FileNotFoundError:
             print(f"Warning: config.json not found at {config_path}, using defaults")
-            return {}
+        except ValueError as error:
+            print(f"Warning: Failed to parse config.json ({error}), using defaults")
+        return copy.deepcopy(cls.DEFAULT_CONFIG)
+
+    def save_config(self):
+        try:
+            with open(self.CONFIG_PATH, "w", encoding="utf-8") as f:
+                json.dump(self.config, f, indent=4)
+        except OSError as error:
+            raise RuntimeError(f"Unable to write config file: {error}")
+
+    def get_settings(self):
+        return {
+            "model": self.model,
+            "temperature": self.temperature,
+            "initialPrompt": self.prompt,
+        }
+
+    def update_settings(self, new_settings: dict):
+        try:
+            temperature = float(new_settings.get("temperature", self.temperature))
+        except (TypeError, ValueError):
+            return {"success": False, "error": "Temperature must be a number"}
+        temperature = max(0.0, min(1.0, temperature))
+
+        model = new_settings.get("model", self.model)
+        if model not in self.ALLOWED_MODELS:
+            return {"success": False, "error": "Model is not supported"}
+
+        prompt = new_settings.get("initialPrompt")
+        if prompt is None:
+            prompt = new_settings.get("prompt", self.prompt)
+        prompt = str(prompt)
+
+        openai_config = self.config.setdefault("openai", {})
+        openai_config.update({
+            "model": model,
+            "temperature": temperature,
+            "prompt": prompt,
+        })
+
+        try:
+            self.save_config()
+        except RuntimeError as error:
+            return {"success": False, "error": str(error)}
+
+        self.apply_config(self.config)
+        return {"success": True, "settings": self.get_settings()}
 
     def process_audio(self, audio_base64):
         """Transcribe base64 encoded WebM audio data"""
@@ -123,3 +194,16 @@ class AudioAPI:
         """Close the application window"""
         if self.window:
             self.window.destroy()
+
+    def open_settings(self):
+        """Open the settings window"""
+        settings_page = str((Path(__file__).parent.parent / "frontend" / "settings" / "index.html").as_uri())
+        # This method causes lots of UI glitches, so possibly
+        # TODO: rewrite to use another bottle instance or any other html serving method
+        webview.create_window(
+            'SayClip Settings',
+            settings_page,
+            width=400,
+            height=500,
+            js_api=self
+        )
