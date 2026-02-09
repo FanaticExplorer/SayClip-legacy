@@ -52,6 +52,7 @@ class AudioAPI:
             self.client = None
 
         self.window: Window | None = None
+        self.settings_window: Window | None = None
 
     def validate_and_save_key(self, api_key):
         """Validates the API key and saves it to keyring if valid"""
@@ -210,6 +211,10 @@ class AudioAPI:
 
     def open_settings(self):
         """Open the settings window"""
+        # If settings window already exists, do nothing
+        if self.settings_window is not None:
+            return
+
         settings_page = str(
             (
                 Path(__file__).parent.parent / "frontend" / "settings" / "index.html"
@@ -217,6 +222,13 @@ class AudioAPI:
         )
         # This method causes lots of UI glitches, so possibly
         # TODO: rewrite to use another bottle instance or any other html serving method
-        webview.create_window(
+        self.settings_window = webview.create_window(
             "SayClip Settings", settings_page, width=400, height=500, js_api=self
         )
+
+        # Clear the reference when the window is closed
+        def on_settings_closed():
+            self.settings_window = None
+
+        self.settings_window.events.closed += on_settings_closed
+
