@@ -18,6 +18,7 @@ from webview import Window
 filterwarnings("ignore", category=UserWarning, message=".*URL.raw is deprecated.*")
 from openai import OpenAI, AuthenticationError, APIConnectionError
 
+
 class AudioAPI:
     CONFIG_PATH = str((Path(__file__).parent.parent / "config.json").resolve())
     ALLOWED_MODELS = {
@@ -41,7 +42,9 @@ class AudioAPI:
         self.apply_config(self.config)
 
         # Try to get key from keyring first, then environment variable
-        self.api_key = keyring.get_password("SayClip", "openai_api_key") or os.getenv("OPENAI_API_KEY")
+        self.api_key = keyring.get_password("SayClip", "openai_api_key") or os.getenv(
+            "OPENAI_API_KEY"
+        )
 
         if self.api_key:
             self.client = OpenAI(api_key=self.api_key)
@@ -67,9 +70,15 @@ class AudioAPI:
             self.restart_app()
             return {"success": True}
         except AuthenticationError:
-            return {"success": False, "error": "Incorrect API key provided. Please check your key."}
+            return {
+                "success": False,
+                "error": "Incorrect API key provided. Please check your key.",
+            }
         except APIConnectionError:
-            return {"success": False, "error": "Connection error. Please check your internet connection."}
+            return {
+                "success": False,
+                "error": "Connection error. Please check your internet connection.",
+            }
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -133,11 +142,13 @@ class AudioAPI:
         prompt = str(prompt)
 
         openai_config = self.config.setdefault("openai", {})
-        openai_config.update({
-            "model": model,
-            "temperature": temperature,
-            "prompt": prompt,
-        })
+        openai_config.update(
+            {
+                "model": model,
+                "temperature": temperature,
+                "prompt": prompt,
+            }
+        )
 
         try:
             self.save_config()
@@ -155,13 +166,15 @@ class AudioAPI:
         try:
             audio_data = base64.b64decode(audio_base64)
             audio_file = BytesIO(audio_data)
-            audio_file.name = f"recording_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.webm"
+            audio_file.name = (
+                f"recording_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.webm"
+            )
 
             transcription = self.client.audio.transcriptions.create(
                 model=self.model,
                 file=audio_file,
                 prompt=self.prompt,
-                temperature=self.temperature
+                temperature=self.temperature,
             )
 
             text = transcription.text.strip()
@@ -177,7 +190,7 @@ class AudioAPI:
                 "stage": "done",
                 "message": "Transcription complete",
                 "text": text,
-                "copied": copied
+                "copied": copied,
             }
 
         except Exception as e:
@@ -187,7 +200,7 @@ class AudioAPI:
                 "success": False,
                 "stage": "error",
                 "message": error_message,
-                "copied": False
+                "copied": False,
             }
 
     def close_window(self):
@@ -197,13 +210,13 @@ class AudioAPI:
 
     def open_settings(self):
         """Open the settings window"""
-        settings_page = str((Path(__file__).parent.parent / "frontend" / "settings" / "index.html").as_uri())
+        settings_page = str(
+            (
+                Path(__file__).parent.parent / "frontend" / "settings" / "index.html"
+            ).as_uri()
+        )
         # This method causes lots of UI glitches, so possibly
         # TODO: rewrite to use another bottle instance or any other html serving method
         webview.create_window(
-            'SayClip Settings',
-            settings_page,
-            width=400,
-            height=500,
-            js_api=self
+            "SayClip Settings", settings_page, width=400, height=500, js_api=self
         )
