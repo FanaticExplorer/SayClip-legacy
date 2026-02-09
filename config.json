@@ -1,7 +1,7 @@
 {
     "openai": {
         "model": "gpt-4o-mini-transcribe",
-        "prompt": "Transcribe accurately with proper punctuation and capitalization. Convert names of punctuation into punctuation itself (like \"comma\" would turn to \",\")",
+        "prompt": "Transcribe the following audio accurately. Apply proper punctuation (including commas, periods, and question marks), correct capitalization, and fix common filler words (like \"um\", \"uh\", \"you know\") unless they are critical to the meaning. Output should be in plain text.",
         "temperature": 0.1
     }
 }
