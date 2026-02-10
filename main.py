@@ -1,7 +1,9 @@
-import webview
 import os
-import keyring
 from pathlib import Path
+
+import keyring
+import webview
+
 from backend import AudioAPI
 
 

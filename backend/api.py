@@ -14,10 +14,11 @@ from copykitten import copy as ck_copy
 from dotenv import load_dotenv
 from webview import Window
 
-# Had to add this one, because of httpx deprecation warning in httpx (URL.raw derprecation).
-# Remind me to remove this once openai will update their httpx dependency...
+# # openai uses URL.raw which is deprecated in new versions of httpx, which was deprecated.
+# # So, as far as I hate supressing warnings, this is the best option until they update their library
+# # (they didn't fix this for a long time, so I don't have high hopes for a quick fix)
 filterwarnings("ignore", category=UserWarning, message=".*URL.raw is deprecated.*")
-from openai import APIConnectionError, AuthenticationError, OpenAI
+from openai import APIConnectionError, AuthenticationError, OpenAI  # noqa: E402
 
 
 class AudioAPI:
