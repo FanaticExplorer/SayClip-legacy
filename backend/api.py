@@ -1,27 +1,28 @@
-import sys
-import os
-import keyring
 import base64
+import copy
 import datetime
 import json
-import copy
-import webview
+import os
+import sys
 from io import BytesIO
 from pathlib import Path
-from dotenv import load_dotenv
-from copykitten import copy as ck_copy
 from warnings import filterwarnings
+
+import keyring
+import webview
+from copykitten import copy as ck_copy
+from dotenv import load_dotenv
 from webview import Window
 
 # Had to add this one, because of httpx deprecation warning in httpx (URL.raw derprecation).
 # Remind me to remove this once openai will update their httpx dependency...
 filterwarnings("ignore", category=UserWarning, message=".*URL.raw is deprecated.*")
-from openai import OpenAI, AuthenticationError, APIConnectionError
+from openai import APIConnectionError, AuthenticationError, OpenAI
 
 
 class AudioAPI:
-    CONFIG_PATH = str((Path(__file__).parent.parent / "config.json").resolve())
-    ALLOWED_MODELS = {
+    CONFIG_PATH: str = str((Path(__file__).parent.parent / "config.json").resolve())
+    ALLOWED_MODELS: set[str] = {
         "gpt-4o-transcribe",
         "gpt-4o-mini-transcribe",
         "gpt-4o-mini-transcribe-2025-12-15",
@@ -31,7 +32,7 @@ class AudioAPI:
     DEFAULT_CONFIG = {
         "openai": {
             "model": "gpt-4o-mini-transcribe",
-            "prompt": "Transcribe accurately with proper punctuation and capitalization.",
+            "prompt": "Transcribe accurately with proper punctuation and capitalization, remove filler words.",
             "temperature": 0,
         }
     }
@@ -54,6 +55,10 @@ class AudioAPI:
         self.window: Window | None = None
         self.settings_window: Window | None = None
 
+        self.model: str = ""
+        self.prompt: str = ""
+        self.temperature: float = 0.0
+
     def validate_and_save_key(self, api_key):
         """Validates the API key and saves it to keyring if valid"""
         if not api_key:
@@ -69,7 +74,8 @@ class AudioAPI:
 
             # Restart application
             self.restart_app()
-            return {"success": True}
+            return {"success": True} # Won't be reacheable?
+            # TODO: delete later, or put before restart
         except AuthenticationError:
             return {
                 "success": False,
@@ -162,7 +168,12 @@ class AudioAPI:
     def process_audio(self, audio_base64):
         """Transcribe base64 encoded WebM audio data"""
         if not self.client:
-            return "Error: OpenAI API key not configured."
+            return {
+                "success": False,
+                "stage": "error",
+                "message": "Error: OpenAI API key not configured.",
+                "copied": False,
+            }
 
         try:
             audio_data = base64.b64decode(audio_base64)
@@ -193,10 +204,9 @@ class AudioAPI:
                 "text": text,
                 "copied": copied,
             }
-
         except Exception as e:
             error_message = str(e)
-            print(f"Error saving audio: {error_message}")
+            print(f"Error transcribing audio: {error_message}")
             return {
                 "success": False,
                 "stage": "error",
@@ -226,9 +236,10 @@ class AudioAPI:
             "SayClip Settings", settings_page, width=400, height=500, js_api=self
         )
 
-        # Clear the reference when the window is closed
-        def on_settings_closed():
-            self.settings_window = None
+        if self.settings_window is not None:
+            # Clear the reference when the window is closed
+            def on_settings_closed():
+                self.settings_window = None
 
-        self.settings_window.events.closed += on_settings_closed
+            self.settings_window.events.closed += on_settings_closed
 
